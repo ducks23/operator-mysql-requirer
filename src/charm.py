@@ -101,8 +101,8 @@ class MySQLRequires(Object):
                 'port': "3306",
                 'database': database,
             }
-            self.charm._stored.db_info = db_info
-            self.on.foo_available.emit()
+            #self.charm._stored.db_info = db_info
+            self.on.foo_available.emit(db_info)
         else:
             logger.info("DB INFO NOT AVAILABLE")
 
@@ -134,7 +134,7 @@ class FooRequirerCharm(CharmBase):
         pass
 
     def on_foo_available(self, event):
-        logging.info(self._stored.db_info)
+        logging.info(event.__dict__)
 
 
 if __name__ == "__main__":
