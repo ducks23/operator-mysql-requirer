@@ -86,7 +86,7 @@ class DBInfoAvailableEvent(EventBase):
 
     def __init__(self, handle, db_info):
         super().__init__(handle)
-        self.db_info = db_info
+        self._db_info = db_info
 
     @property
     def db_info(self):
