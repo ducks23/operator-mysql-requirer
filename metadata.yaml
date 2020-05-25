@@ -1,0 +1,14 @@
+name: mysql-requirer
+summary: Testing relations
+maintainers:
+    - james beedy <jamesbeedy@gmail.com>
+description: |
+  Testing relations
+tags:
+    - testing
+    - operator
+series:
+    - focal
+requires:
+  db:
+    interface: mysql
