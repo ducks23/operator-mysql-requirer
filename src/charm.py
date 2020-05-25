@@ -193,7 +193,7 @@ class FooRequirerCharm(CharmBase):
 
         # Adds our requiring side of the relation, FooRequires to the charm.
         self.foo = MySQLRequires(self, "db")
-        self.framework.observe(self.foo.on.foo_available, self.on_foo_available)
+        self.framework.observe(self.foo.on.db_info_available, self.on_foo_available)
 
     def _on_start(self, event):
         pass
