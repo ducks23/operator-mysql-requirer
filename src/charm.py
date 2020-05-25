@@ -166,7 +166,7 @@ class MySQLRequires(Object):
             db_info = DBInfo(
                 user=user,
                 password=password,
-                host=service_spec.host,
+                host=host,
                 port="3306",
                 database=database,
             )
@@ -181,12 +181,8 @@ class FooRequirerCharm(CharmBase):
     the relation-changed hook event.
     """
 
-    _stored = StoredState()
-    
     def __init__(self, *args):
         super().__init__(*args)
-
-        self._stored.set_default(db_info=dict())
 
         self.framework.observe(self.on.start, self._on_start)
         self.framework.observe(self.on.install, self._on_install)
@@ -202,7 +198,7 @@ class FooRequirerCharm(CharmBase):
         pass
 
     def on_foo_available(self, event):
-        logging.info(event.db_info.__dict__)
+        logging.info(event.db_info.user)
 
 
 if __name__ == "__main__":
