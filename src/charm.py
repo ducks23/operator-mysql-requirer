@@ -23,13 +23,84 @@ from ops.main import main
 logger = logging.getLogger()
 
 
-class FooAvailableEvent(EventBase):
-    """Emitted when the value for 'foo' has been received."""
+class DBInfo:
+
+    def __init__(
+        self,
+        user=None,
+        password=None,
+        host=None,
+        port=None,
+        database=None,
+    ):
+        self.set_address(user, password, host, port, database)
+
+    def set_address(self, user, password, host, port, database):
+        self._user = user
+        self._password = password
+        self._host = host
+        self._port = port
+        self._database = database
+
+    @property
+    def user(self):
+        return self._user
+
+    @property
+    def password(self):
+        return self._password
+
+    @property
+    def host(self):
+        return self._host
+
+    @property
+    def port(self):
+        return self._port
+
+    @property
+    def database(self):
+        return self._database
+
+    @classmethod
+    def restore(cls, snapshot):
+        return cls(
+            user=snapshot['db_info.user'],
+            password=snapshot['db_info.password'],
+            host=snapshot['db_info.host'],
+            port=snapshot['db_info.port'],
+            database=snapshot['db_info.database'],
+        )
+
+    def snapshot(self):
+        return {
+            'db_info.user': self.user,
+            'db_info.password': self.password,
+            'db_info.host': self.host,
+            'db_info.port': self.port,
+            'db_info.database': self.database,
+        }
 
 
-class FooEvents(ObjectEvents):
-    foo_available = EventSource(FooAvailableEvent)
+class DBInfoAvailableEvent(EventBase):
 
+    def __init__(self, handle, db_info):
+        super().__init__(handle)
+        self.db_info = db_info
+
+    @property
+    def db_info(self):
+        return self._db_info
+
+    def snapshot(self):
+        return self.db_info.snapshot()
+
+    def restore(self, snapshot):
+        self._db_info = DBInfo.restore(snapshot)
+
+
+class DBInfoEvents(ObjectEvents):
+    db_info_available = EventSource(DBInfoAvailableEvent)
 
 
 class MySQLRequires(Object):
@@ -41,14 +112,12 @@ class MySQLRequires(Object):
         - db-relation-joined
         - db-relation-changed
     """
-    on = FooEvents()
+    on = DBInfoEvents()
 
     def __init__(self, charm, relation_name):
         super().__init__(charm, relation_name)
         # Observe the relation-changed hook event and bind
         # self.on_relation_changed() to handle the event.
-
-        self.charm = charm
 
         self.framework.observe(
             charm.on[relation_name].relation_created,
@@ -94,15 +163,14 @@ class MySQLRequires(Object):
         database = event.relation.data[event.unit].get('database', None)
 
         if (user and password and host and database):
-            db_info = {
-                'user': user,
-                'password': password,
-                'host': host,
-                'port': "3306",
-                'database': database,
-            }
-            #self.charm._stored.db_info = db_info
-            self.on.foo_available.emit(db_info)
+            db_info = DBInfo(
+                user=user,
+                password=password,
+                host=service_spec.host,
+                port="3306",
+                database=database,
+            )
+            self.on.db_info_available.emit(db_info)
         else:
             logger.info("DB INFO NOT AVAILABLE")
 
@@ -134,7 +202,7 @@ class FooRequirerCharm(CharmBase):
         pass
 
     def on_foo_available(self, event):
-        logging.info(event.__dict__)
+        logging.info(event.db_info.__dict__)
 
 
 if __name__ == "__main__":
