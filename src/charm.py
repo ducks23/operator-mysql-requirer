@@ -103,7 +103,7 @@ class DBInfoEvents(ObjectEvents):
     db_info_available = EventSource(DBInfoAvailableEvent)
 
 
-class MySQLRequires(Object):
+class MySQLClient(Object):
     """This class defines the functionality for the 'requires'
     side of the 'foo' relation.
 
@@ -175,7 +175,24 @@ class MySQLRequires(Object):
             logger.info("DB INFO NOT AVAILABLE")
 
 
-class FooRequirerCharm(CharmBase):
+class ConfigureSlurmDBDEvent(EventBase):
+    """Event used to signal that slurmdbd config should be written to disk.
+    """
+
+class ConfigureSlurmEvents(ObjectEvents):
+    configure_slurm = EventSource(ConfigureSlurmDBDEvent)
+
+
+class SlurmConfig(Object):
+    """Class containing events used to signal slurm snap configuration.
+
+    Events emitted:
+        - configure_slurm
+    """
+    on = ConfigureSlurmEvents()
+
+
+class SlurmDBDCharm(CharmBase):
     """This charm demonstrates the 'requires' side of the relationship by
     extending CharmBase with an event object that observes
     the relation-changed hook event.
@@ -191,20 +208,27 @@ class FooRequirerCharm(CharmBase):
         self.framework.observe(self.on.start, self._on_start)
         self.framework.observe(self.on.install, self._on_install)
 
-        # Adds our requiring side of the relation, FooRequires to the charm.
-        self.db_info = MySQLRequires(self, "db")
+        self.db_info = MySQLClient(self, "db")
         self.framework.observe(
             self.db_info.on.db_info_available,
             self._on_db_info_available
         )
 
-    def _on_start(self, event):
-        pass
+        self.slurm_config = SlurmConfig(self, "slurm-config")
+        self.framework.observe(
+            self.slurm_config.on.configure_slurm,
+            self._on_configure_slurm
+        )
 
     def _on_install(self, event):
         pass
 
+    def _on_start(self, event):
+        pass
+
     def _on_db_info_available(self, event):
+        """Store the db_info in the StoredState for later use.
+        """
         db_info = {
             'user': event.db_info.user,
             'password': event.db_info.password,
@@ -213,8 +237,20 @@ class FooRequirerCharm(CharmBase):
             'database': event.db_info.database,
         }
         self._stored.db_info = db_info
-        logging.info(db_info)
+        self.slurm_config.on.configure_slurm.emit()
+
+    def _on_configure_slurm(self, event):
+        """Render the slurmdbd.yaml and set the snap.mode.
+        """
+        logger.info("IN CONFIGURE-SLURM")
+        #render_slurm_config(
+        #    "/var/snap/slurm/common/etc/slurm-configurator/slurmdbd.yaml",
+        #    context=self._stored.db_info
+        #)
+        #set_slurm_snap_mode(
+        #    "slurmdbd+manual"
+        #)
 
 
 if __name__ == "__main__":
-    main(FooRequirerCharm)
+    main(SlurmDBDCharm)
