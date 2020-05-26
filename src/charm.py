@@ -181,15 +181,22 @@ class FooRequirerCharm(CharmBase):
     the relation-changed hook event.
     """
 
+    _stored = StoredState()
+
     def __init__(self, *args):
         super().__init__(*args)
+
+        self._stored.set_default(db_info=dict())
 
         self.framework.observe(self.on.start, self._on_start)
         self.framework.observe(self.on.install, self._on_install)
 
         # Adds our requiring side of the relation, FooRequires to the charm.
-        self.foo = MySQLRequires(self, "db")
-        self.framework.observe(self.foo.on.db_info_available, self.on_foo_available)
+        self.db_info = MySQLRequires(self, "db")
+        self.framework.observe(
+            self.db_info.on.db_info_available,
+            self._on_db_info_available
+        )
 
     def _on_start(self, event):
         pass
@@ -197,8 +204,16 @@ class FooRequirerCharm(CharmBase):
     def _on_install(self, event):
         pass
 
-    def on_foo_available(self, event):
-        logging.info(event.db_info.user)
+    def _on_db_info_available(self, event):
+        db_info = {
+            'user': event.db_info.user,
+            'password': event.db_info.password,
+            'host': event.db_info.host,
+            'port': event.db_info.port,
+            'database': event.db_info.database,
+        }
+        self._stored.db_info = db_info
+        logging.info(db_info)
 
 
 if __name__ == "__main__":
