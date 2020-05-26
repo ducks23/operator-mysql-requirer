@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import os
+import socket
 import sys
 sys.path.append('lib')
 sys.path.append('../lib')
@@ -6,6 +8,8 @@ sys.path.append('../lib')
 import logging
 
 from time import sleep
+
+from pathlib import Path
 
 from ops.charm import CharmBase
 
@@ -175,15 +179,20 @@ class MySQLClient(Object):
             logger.info("DB INFO NOT AVAILABLE")
 
 
-class ConfigureSlurmDBDEvent(EventBase):
-    """Event used to signal that slurmdbd config should be written to disk.
+class ConfigureSlurmEvent(EventBase):
+    """Event used to signal that slurm config should be written to disk.
+    """
+
+class SlurmSnapInstalledEvent(EventBase):
+    """Event used to signal that the slurm snap has been installed.
     """
 
 class ConfigureSlurmEvents(ObjectEvents):
     configure_slurm = EventSource(ConfigureSlurmDBDEvent)
+    slurm_snap_installed = EventSource(SlurmSnapInstalledEvent)
 
 
-class SlurmConfig(Object):
+class SlurmSnapOps(Object):
     """Class containing events used to signal slurm snap configuration.
 
     Events emitted:
@@ -191,8 +200,35 @@ class SlurmConfig(Object):
     """
     on = ConfigureSlurmEvents()
 
-    def render_slurm_config(self, source=None, target=None, context=None):
+    def install_slurm_snap(self):
         pass
+
+    def render_slurm_config(self, source, target, context):
+        """Render the context into the source template and write
+        it to the target location.
+        """
+
+        source = Path(source)
+        target = Path(target)
+
+        if context and type(context) == dict:
+            ctxt = context
+        else:
+            raise TypeError(
+                f"Incorect type {type(context)} for context - Please debug."
+            )
+
+        if not source.exists():
+            raise Exception(
+                f"Source config {source} does not exist - Please debug."
+            )
+
+        if target.exists():
+            target.unlink()
+
+        with open(str(target), 'w') as f:
+            f.write(open(str(source), 'r').read().format(**ctxt))
+
 
     def set_slurm_snap_mode(self, snap_mode):
         pass
@@ -220,16 +256,23 @@ class SlurmDBDCharm(CharmBase):
             self._on_db_info_available
         )
 
-        self.slurm_config = SlurmConfig(self, "slurm-config")
+        self.slurm_ops = SlurmSnapOps(self, "slurm-config")
         self.framework.observe(
-            self.slurm_config.on.configure_slurm,
+            self.slurm_ops.on.configure_slurm,
             self._on_configure_slurm
+        )
+        self.framework.observe(
+            self.slurm_ops.on.slurm_snap_installed,
+            self._on_slurm_snap_installed
         )
 
     def _on_install(self, event):
         pass
 
     def _on_start(self, event):
+        pass
+
+    def _on_slurm_snap_installed(self, event):
         pass
 
     def _on_db_info_available(self, event):
@@ -248,10 +291,13 @@ class SlurmDBDCharm(CharmBase):
     def _on_configure_slurm(self, event):
         """Render the slurmdbd.yaml and set the snap.mode.
         """
-        #self.slurm_config.render_slurm_config(
-        #    "/var/snap/slurm/common/etc/slurm-configurator/slurmdbd.yaml",
-        #    context=self._stored.db_info
-        #)
+        hostname = socket.gethostname().split(".")[0]
+        self.slurm_config.render_slurm_config(
+            f"{os.getcwd()}/slurmdbd.yaml.tmpl",
+            #"/var/snap/slurm/common/etc/slurm-configurator/slurmdbd.yaml",
+            "/home/ubuntu/slurmdbd.yaml",
+            context={**{"hostname": hostname}, **self._stored.db_info}
+        )
         #self.slurm_config.set_slurm_snap_mode(
         #    "slurmdbd+manual"
         #)
