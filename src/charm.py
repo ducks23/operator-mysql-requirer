@@ -191,6 +191,12 @@ class SlurmConfig(Object):
     """
     on = ConfigureSlurmEvents()
 
+    def render_slurm_config(self, source=None, target=None, context=None):
+        pass
+
+    def set_slurm_snap_mode(self, snap_mode):
+        pass
+
 
 class SlurmDBDCharm(CharmBase):
     """This charm demonstrates the 'requires' side of the relationship by
@@ -242,12 +248,11 @@ class SlurmDBDCharm(CharmBase):
     def _on_configure_slurm(self, event):
         """Render the slurmdbd.yaml and set the snap.mode.
         """
-        logger.info("IN CONFIGURE-SLURM")
-        #render_slurm_config(
+        #self.slurm_config.render_slurm_config(
         #    "/var/snap/slurm/common/etc/slurm-configurator/slurmdbd.yaml",
         #    context=self._stored.db_info
         #)
-        #set_slurm_snap_mode(
+        #self.slurm_config.set_slurm_snap_mode(
         #    "slurmdbd+manual"
         #)
 
